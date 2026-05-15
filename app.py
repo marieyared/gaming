@@ -904,18 +904,42 @@ def _sim_ai_explain(snapshot_json: str) -> str:
     api_key = get_config_value("ANTHROPIC_API_KEY")
     if not api_key or not api_key.startswith("sk-"):
         return "Add ANTHROPIC_API_KEY to your environment or Streamlit secrets to enable AI explanations."
-    snap   = json.loads(snapshot_json)
-    system = ("You are ORION's strategic intelligence engine. Analyze a portfolio simulation turn and explain "
-              "the outcome in exactly 3 sentences. Present tense, active voice. Reference specific numbers. "
-              "Explain the macro relationship. Note what risks were created or reduced. "
-              "Institutional tone: precise, zero fluff. Say 'the portfolio' not 'your portfolio'. No markdown. Plain text only.")
-    active = {k: f"{v['alloc_pct']:.0f}% ({v['return_pct']:+.1f}%)"
-              for k, v in snap["asset_results"].items() if v["alloc_pct"] > 0.5}
-    user = (f"Turn {snap['turn']} — Event: {snap['event_name']} — Decision: {snap['decision_name']}\n\n"
-            f"Portfolio: ${snap['capital_before']:,.0f} → ${snap['capital_after']:,.0f} ({snap['capital_change_pct']:+.1f}%)\n"
-            f"Resilience: {snap['resilience_before']:.0f} → {snap['resilience_after']:.0f}\n\n"
-            f"Asset returns: {json.dumps(active)}\n\n"
-            f"Explain why this outcome occurred and what it means for the portfolio's risk profile.")
+    snap = json.loads(snapshot_json)
+
+    # Build a per-asset table: before-alloc → after-alloc | return | dollar P&L
+    asset_lines = []
+    for k, v in snap["asset_results"].items():
+        label      = SIM_ASSET_META[k]["label"]
+        pre_alloc  = round(snap["portfolio_before"].get(k, 0) * 100, 1)
+        post_alloc = v["alloc_pct"]
+        if post_alloc < 0.1 and pre_alloc < 0.1:
+            continue  # skip assets never held
+        pnl     = v["post_value"] - v["pre_value"]
+        pnl_str = f"+${pnl:,.0f}" if pnl >= 0 else f"-${abs(pnl):,.0f}"
+        alloc_str = (f"{pre_alloc:.0f}% → {post_alloc:.0f}%" if abs(pre_alloc - post_alloc) >= 1
+                     else f"{post_alloc:.0f}%")
+        asset_lines.append(
+            f"  {label}: {alloc_str} of portfolio | return {v['return_pct']:+.1f}% | P&L {pnl_str}"
+        )
+
+    system = (
+        "You are ORION's strategic intelligence engine — an institutional-grade financial AI. "
+        "Analyze a portfolio simulation turn and explain the outcome in exactly 3 sentences. "
+        "Rules: present tense, active voice. Reference specific numbers — allocations, return %, dollar P&L. "
+        "Explain the macro mechanism that drove each asset's return. "
+        "Specifically note how the decision (rebalancing) changed the outcome vs staying put. "
+        "Note what risks were created or reduced. Institutional tone: precise, zero fluff. "
+        "Say 'the portfolio' not 'your portfolio'. No markdown. No bullet points. Plain text only."
+    )
+    user = (
+        f"Turn {snap['turn']} — Event: {snap['event_name']} — Decision: {snap['decision_name']}\n\n"
+        f"Total portfolio: ${snap['capital_before']:,.0f} → ${snap['capital_after']:,.0f} "
+        f"({snap['capital_change_pct']:+.1f}%)\n"
+        f"Resilience: {snap['resilience_before']:.0f} → {snap['resilience_after']:.0f}\n\n"
+        f"Asset breakdown (allocation before→after decision | return this cycle | dollar P&L):\n"
+        + "\n".join(asset_lines) + "\n\n"
+        f"Explain why this outcome occurred, which assets drove it, and what impact the decision had."
+    )
     try:
         resp = requests.post(
             "https://api.anthropic.com/v1/messages",
@@ -1787,7 +1811,7 @@ def screen_map():
 
     with st.spinner("Generating AI insights…"):
 
-        insights = generate_portfolio_insights(isin_holdings, geo_agg, sector_agg, info_map)
+        insights = generate_portfolio_insights(holdings, geo_agg, sector_agg, info_map)
 
     render_insights_card(insights)
 
