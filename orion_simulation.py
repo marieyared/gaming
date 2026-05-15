@@ -408,5 +408,4 @@ class OrionSimulation:
         else:
             explanation += "Your portfolio shows vulnerability to economic shocks. Consider increasing liquidity and diversification."
 
-        return explanation</content>
-<parameter name="filePath">/Users/marieyared/Desktop/startup/finance/finance-app/finance-simplified copy/orion_simulation.py
+        return explanation
