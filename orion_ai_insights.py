@@ -118,32 +118,53 @@ def _get_api_key() -> str:
 
 def _build_analytics(holdings, geo_agg, sector_agg, info_map):
     """Crunch all numbers in Python. AI only writes sentences — no math."""
-    total_current = sum(h["current"] for h in holdings)
-    total_paid    = sum(h["paid"]    for h in holdings)
+    # Separate debt (liability) entries from asset entries
+    debt_holdings  = [h for h in holdings if h.get("type") == "debt"]
+    asset_holdings = [h for h in holdings if h.get("type") != "debt"]
+
+    total_current = sum(h.get("current", 0) for h in asset_holdings)
+    total_paid    = sum(h.get("paid",    0) for h in asset_holdings)
     total_pnl     = total_current - total_paid
     total_pct     = (total_pnl / total_paid * 100) if total_paid else 0
+    total_debt    = sum(h.get("amount",  0) for h in debt_holdings)
 
-    equity_val = sum(h["current"] for h in holdings if h.get("asset_type", "stock_etf") == "stock_etf")
-    bond_val   = sum(h["current"] for h in holdings if h.get("asset_type") == "bond")
-    cash_val   = sum(h["current"] for h in holdings if h.get("asset_type") == "cash")
+    def _pct(v):
+        return round(v / total_current * 100, 1) if total_current else 0
+
+    # Per-type totals — all computed against the same total_current
+    equity_val     = sum(h.get("current", 0) for h in asset_holdings if h.get("asset_type", "stock_etf") == "stock_etf")
+    bond_val       = sum(h.get("current", 0) for h in asset_holdings if h.get("asset_type") == "bond")
+    cash_val       = sum(h.get("current", 0) for h in asset_holdings if h.get("asset_type") == "cash")
+    realestate_val = sum(h.get("current", 0) for h in asset_holdings if h.get("type") == "real_estate")
+    crypto_val     = sum(h.get("current", 0) for h in asset_holdings if h.get("type") == "crypto")
+    commodity_val  = sum(h.get("current", 0) for h in asset_holdings if h.get("type") == "commodity")
 
     top_geo     = sorted(geo_agg.items(),    key=lambda x: -x[1])[:5]
     top_sectors = sorted(sector_agg.items(), key=lambda x: -x[1])[:5]
 
     holding_details = []
-    for h in holdings:
-        isin   = h["isin"].upper()
-        paid   = h["paid"]
-        cur    = h["current"]
+    for h in asset_holdings:
+        cur    = h.get("current", 0)
+        paid   = h.get("paid",    0)
         pnl    = cur - paid
         pnl_p  = (pnl / paid * 100) if paid else 0
-        name   = info_map.get(isin, {}).get("name", isin)
-        weight = (cur / total_current * 100) if total_current else 0
+        weight = _pct(cur)
+        htype  = h.get("type") or h.get("asset_type", "stock_etf")
+
+        if "isin" in h:
+            isin = h["isin"].upper()
+            name = info_map.get(isin, {}).get("name", isin)
+            label = isin
+        else:
+            name  = h.get("name", htype)
+            label = name
+            isin  = ""
+
         holding_details.append({
             "name":       name,
-            "isin":       isin,
-            "type":       h.get("asset_type", "stock_etf"),
-            "weight_pct": round(weight, 1),
+            "isin":       label,
+            "type":       htype,
+            "weight_pct": weight,
             "pnl_pct":    round(pnl_p, 1),
             "pnl_usd":    round(pnl, 0),
             "current":    round(cur, 0),
@@ -152,9 +173,12 @@ def _build_analytics(holdings, geo_agg, sector_agg, info_map):
     biggest = max(holding_details, key=lambda x: x["weight_pct"]) if holding_details else {}
 
     bond_income = 0.0
-    for h in holdings:
+    for h in asset_holdings:
         if h.get("asset_type") == "bond":
-            bond_income += h["face_value"] * h["quantity"] * (h["coupon"] / 100)
+            try:
+                bond_income += h["face_value"] * h["quantity"] * (h["coupon"] / 100)
+            except (KeyError, TypeError):
+                pass
 
     concentration_alerts = []
     for code, pct in geo_agg.items():
@@ -170,12 +194,17 @@ def _build_analytics(holdings, geo_agg, sector_agg, info_map):
             "total_invested_usd": round(total_paid, 0),
             "total_pnl_usd":      round(total_pnl, 0),
             "total_return_pct":   round(total_pct, 1),
-            "n_holdings":         len(holdings),
+            "total_debt_usd":     round(total_debt, 0),
+            "net_worth_usd":      round(total_current - total_debt, 0),
+            "n_holdings":         len(asset_holdings),
         },
         "allocation": {
-            "equity_pct": round(equity_val / total_current * 100, 1) if total_current else 0,
-            "bond_pct":   round(bond_val   / total_current * 100, 1) if total_current else 0,
-            "cash_pct":   round(cash_val   / total_current * 100, 1) if total_current else 0,
+            "equities_pct":    _pct(equity_val),
+            "bonds_pct":       _pct(bond_val),
+            "cash_pct":        _pct(cash_val),
+            "real_estate_pct": _pct(realestate_val),
+            "crypto_pct":      _pct(crypto_val),
+            "commodities_pct": _pct(commodity_val),
         },
         "top_geographies": [{"country": c, "pct": round(p, 1)} for c, p in top_geo],
         "top_sectors":     [{"sector": s,  "pct": round(p, 1)} for s, p in top_sectors],
