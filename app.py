@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from datetime import date, datetime
 import json
 import os
+import random
 import calendar as _calendar
 from concurrent.futures import ThreadPoolExecutor
 from orion_ai_insights import generate_portfolio_insights, render_insights_card
@@ -172,6 +173,8 @@ if "commodity_rows" not in st.session_state:
     st.session_state.commodity_rows = []
 if "debt_rows" not in st.session_state:
     st.session_state.debt_rows = []
+if "sim_game" not in st.session_state:
+    st.session_state.sim_game = None
 
 
 def set_api_issue(service: str, message: str):
@@ -748,6 +751,244 @@ def find_overlapping_companies(holdings: list, info_map: dict) -> dict:
             "total_etf_value": sum(e["value"] for e in via_etf[sym]),
         }
     return result
+
+
+# ══════════════════════════════════════════════════════════════════
+# ORION STRATEGY SIMULATOR — DATA + ENGINE
+# ══════════════════════════════════════════════════════════════════
+
+SIM_EVENTS = {
+    "inflation_shock": {"id": "inflation_shock", "name": "Inflation Shock", "category": "monetary", "severity": "high", "headline": "Consumer Prices Surge Past 8%", "description": "Inflation accelerates beyond central bank targets. Real yields collapse as bond markets sell off. Hard assets and commodities surge as investors seek inflation protection. Growth equities face a brutal repricing.", "effects": {"equities": -0.06, "bonds": -0.14, "real_estate": +0.03, "commodities": +0.18, "cash": 0.00, "crypto": -0.08}, "resilience_impact": -8, "region_stress": {"us": 60, "europe": 72, "asia": 50, "emerging": 85, "gulf": 28}, "affected_sectors": {"Fixed Income": -14, "Technology": -8, "Energy": +15, "Commodities": +18, "Real Estate": +3, "Consumer Staples": -5}},
+    "tech_crash": {"id": "tech_crash", "name": "Technology Crash", "category": "market", "severity": "severe", "headline": "AI Valuation Bubble Bursts", "description": "High-multiple technology stocks enter a violent correction. Growth equities shed a third of their value in weeks. Quality and value hold. A flight to safety begins as credit spreads widen.", "effects": {"equities": -0.22, "bonds": +0.04, "real_estate": -0.02, "commodities": -0.03, "cash": 0.00, "crypto": -0.38}, "resilience_impact": -12, "region_stress": {"us": 90, "asia": 72, "europe": 50, "emerging": 42, "gulf": 20}, "affected_sectors": {"Technology": -28, "Communication": -18, "Consumer Discretionary": -10, "Fixed Income": +4, "Healthcare": +2, "Utilities": +3}},
+    "banking_crisis": {"id": "banking_crisis", "name": "Banking System Stress", "category": "financial", "severity": "severe", "headline": "Systemic Banking Stress Detected", "description": "Regional bank failures trigger contagion fears across the financial system. Credit markets seize. Depositors flee to safety. Equities fall sharply as systemic risk spikes and credit availability collapses.", "effects": {"equities": -0.18, "bonds": +0.06, "real_estate": -0.08, "commodities": -0.04, "cash": 0.00, "crypto": -0.28}, "resilience_impact": -15, "region_stress": {"europe": 88, "us": 75, "emerging": 70, "asia": 55, "gulf": 30}, "affected_sectors": {"Financials": -25, "Real Estate": -8, "Technology": -12, "Fixed Income": +6, "Utilities": +4, "Healthcare": +3}},
+    "commodity_boom": {"id": "commodity_boom", "name": "Commodity Supercycle", "category": "supply", "severity": "medium", "headline": "Energy and Metals Hit Decade Highs", "description": "Supply constraints and geopolitical tension send energy and metals prices surging. Resource-exporting nations benefit. Import-dependent manufacturers face severe margin compression.", "effects": {"equities": +0.03, "bonds": -0.03, "real_estate": +0.05, "commodities": +0.28, "cash": 0.00, "crypto": +0.05}, "resilience_impact": +2, "region_stress": {"gulf": 0, "emerging": 12, "us": 28, "asia": 42, "europe": 48}, "affected_sectors": {"Energy": +30, "Commodities": +28, "Materials": +20, "Industrials": -5, "Consumer Discretionary": -8, "Technology": +2}},
+    "rate_hike_cycle": {"id": "rate_hike_cycle", "name": "Aggressive Rate Hike Cycle", "category": "monetary", "severity": "high", "headline": "Central Bank Raises Rates 150bps", "description": "Central banks move aggressively to contain inflation. Bond yields spike as long-duration assets reprice violently. Cash becomes competitive for the first time in a decade. Leveraged real estate faces severe pressure.", "effects": {"equities": -0.10, "bonds": -0.16, "real_estate": -0.10, "commodities": +0.04, "cash": +0.04, "crypto": -0.15}, "resilience_impact": -10, "region_stress": {"emerging": 82, "europe": 65, "asia": 62, "us": 55, "gulf": 35}, "affected_sectors": {"Fixed Income": -16, "Real Estate": -10, "Utilities": -8, "Technology": -10, "Financials": +5, "Cash": +4}},
+    "ai_boom": {"id": "ai_boom", "name": "AI Productivity Surge", "category": "technology", "severity": "medium", "headline": "AI Breakthrough Triggers Broad Market Rally", "description": "A landmark AI capability breakthrough triggers a productivity boom narrative. Technology stocks lead a broad market rally. Earnings estimates rise across sectors as automation potential is priced in.", "effects": {"equities": +0.18, "bonds": -0.02, "real_estate": +0.04, "commodities": -0.03, "cash": 0.00, "crypto": +0.25}, "resilience_impact": +5, "region_stress": {"us": 0, "asia": 10, "europe": 22, "emerging": 30, "gulf": 20}, "affected_sectors": {"Technology": +25, "Communication": +15, "Consumer Discretionary": +10, "Industrials": +8, "Fixed Income": -2, "Energy": -3}},
+    "recession": {"id": "recession", "name": "Economic Recession", "category": "macro", "severity": "severe", "headline": "GDP Contracts for Second Consecutive Quarter", "description": "The economy tips into recession. Consumer spending collapses. Unemployment rises sharply. Earnings downgrades sweep across cyclical sectors. Quality bonds and cash become the only shelter.", "effects": {"equities": -0.20, "bonds": +0.08, "real_estate": -0.12, "commodities": -0.10, "cash": 0.00, "crypto": -0.32}, "resilience_impact": -18, "region_stress": {"us": 80, "europe": 75, "emerging": 88, "asia": 65, "gulf": 40}, "affected_sectors": {"Consumer Discretionary": -18, "Real Estate": -12, "Industrials": -15, "Financials": -12, "Fixed Income": +8, "Healthcare": +5}},
+    "currency_crisis": {"id": "currency_crisis", "name": "Currency Crisis", "category": "macro", "severity": "high", "headline": "Emerging Market Currencies in Freefall", "description": "Emerging market currencies collapse against the dollar. Capital flight accelerates as sovereign debt fears mount. USD-denominated assets and hard commodities become the beneficiaries.", "effects": {"equities": -0.08, "bonds": -0.06, "real_estate": 0.00, "commodities": +0.10, "cash": +0.02, "crypto": +0.08}, "resilience_impact": -6, "region_stress": {"emerging": 95, "asia": 62, "europe": 30, "us": 15, "gulf": 25}, "affected_sectors": {"Emerging Markets": -20, "Commodities": +10, "Fixed Income": -6, "Technology": -5, "Financials": -8, "Energy": +8}},
+    "supply_chain_shock": {"id": "supply_chain_shock", "name": "Supply Chain Disruption", "category": "supply", "severity": "medium", "headline": "Critical Shipping Routes Disrupted", "description": "Major global shipping routes are disrupted. Manufacturing bottlenecks cascade worldwide. Input costs surge for goods-dependent businesses while energy and logistics sectors capitalize on the chaos.", "effects": {"equities": -0.05, "bonds": -0.02, "real_estate": +0.01, "commodities": +0.12, "cash": 0.00, "crypto": -0.04}, "resilience_impact": -5, "region_stress": {"asia": 78, "europe": 62, "emerging": 55, "us": 45, "gulf": 30}, "affected_sectors": {"Industrials": -10, "Consumer Discretionary": -8, "Technology": -5, "Energy": +12, "Commodities": +12, "Fixed Income": -2}},
+    "geopolitical_shock": {"id": "geopolitical_shock", "name": "Geopolitical Escalation", "category": "political", "severity": "high", "headline": "Military Conflict Escalates in Key Region", "description": "Military conflict escalates in a region critical to global energy supply. Safe haven demand surges globally. Energy prices spike. Risk assets sell off as uncertainty premiums expand across all markets.", "effects": {"equities": -0.12, "bonds": +0.05, "real_estate": -0.03, "commodities": +0.20, "cash": +0.01, "crypto": -0.10}, "resilience_impact": -10, "region_stress": {"emerging": 92, "europe": 82, "gulf": 72, "asia": 50, "us": 30}, "affected_sectors": {"Energy": +20, "Commodities": +20, "Defense": +15, "Consumer Discretionary": -12, "Technology": -10, "Fixed Income": +5}},
+}
+
+SIM_EVENT_DECISIONS = {
+    "inflation_shock":    ["stabilize", "hedge_inflation", "buy_commodities", "rotate_defensive"],
+    "tech_crash":         ["stabilize", "raise_cash", "rotate_defensive", "extend_duration"],
+    "banking_crisis":     ["stabilize", "raise_cash", "rotate_defensive", "diversify_global"],
+    "commodity_boom":     ["stabilize", "buy_commodities", "hedge_inflation", "increase_risk"],
+    "rate_hike_cycle":    ["stabilize", "raise_cash", "rotate_defensive", "buy_commodities"],
+    "ai_boom":            ["stabilize", "increase_risk", "diversify_global", "hedge_inflation"],
+    "recession":          ["stabilize", "raise_cash", "extend_duration", "rotate_defensive"],
+    "currency_crisis":    ["stabilize", "buy_commodities", "diversify_global", "raise_cash"],
+    "supply_chain_shock": ["stabilize", "buy_commodities", "rotate_defensive", "raise_cash"],
+    "geopolitical_shock": ["stabilize", "buy_commodities", "raise_cash", "rotate_defensive"],
+}
+
+SIM_DECISIONS = {
+    "stabilize":        {"id": "stabilize",        "name": "Hold Position",           "icon": "◈", "description": "Maintain current allocation. Accept market outcome as positioned.", "allocation_changes": {}, "effect_modifiers": {}, "resilience_delta": 0,  "tag": "Neutral",            "tag_color": "#94a3b8"},
+    "raise_cash":       {"id": "raise_cash",        "name": "Raise Cash",              "icon": "◉", "description": "Reduce equity and bond exposure. Build a cash buffer. Prioritize capital preservation.", "allocation_changes": {"cash": +0.20, "equities": -0.12, "bonds": -0.08}, "effect_modifiers": {"equities": 0.80}, "resilience_delta": +8,  "tag": "Defensive",          "tag_color": "#1D9E75"},
+    "hedge_inflation":  {"id": "hedge_inflation",   "name": "Hedge Inflation",         "icon": "◆", "description": "Rotate into commodities and real assets. Reduce long-duration bond exposure.", "allocation_changes": {"commodities": +0.15, "bonds": -0.12, "equities": -0.03}, "effect_modifiers": {"commodities": 1.30, "bonds": 0.70}, "resilience_delta": +3,  "tag": "Inflation Hedge",    "tag_color": "#F59E0B"},
+    "rotate_defensive": {"id": "rotate_defensive",  "name": "Rotate Defensive",        "icon": "◍", "description": "Shift equities toward defensive sectors. Cushion downside with more bonds.", "allocation_changes": {"bonds": +0.10, "cash": +0.05, "equities": -0.05, "commodities": -0.10}, "effect_modifiers": {"equities": 0.72, "bonds": 1.10}, "resilience_delta": +6,  "tag": "Defensive Rotation", "tag_color": "#a78bfa"},
+    "increase_risk":    {"id": "increase_risk",     "name": "Increase Risk",           "icon": "◇", "description": "Deploy cash into equities. Accept higher volatility for outsized upside.", "allocation_changes": {"equities": +0.20, "cash": -0.15, "bonds": -0.05}, "effect_modifiers": {"equities": 1.28}, "resilience_delta": -8,  "tag": "Aggressive",         "tag_color": "#dc2626"},
+    "buy_commodities":  {"id": "buy_commodities",   "name": "Concentrate Commodities", "icon": "⬡", "description": "Significantly increase commodity allocation. Bet on hard assets outperforming.", "allocation_changes": {"commodities": +0.25, "equities": -0.15, "bonds": -0.10}, "effect_modifiers": {"commodities": 1.42}, "resilience_delta": -4,  "tag": "Concentrated",       "tag_color": "#F59E0B"},
+    "diversify_global": {"id": "diversify_global",  "name": "Diversify Globally",      "icon": "○", "description": "Rebalance toward international and emerging markets. Reduce home-country risk.", "allocation_changes": {}, "effect_modifiers": {"equities": 0.88}, "resilience_delta": +5,  "tag": "Diversification",    "tag_color": "#378ADD"},
+    "extend_duration":  {"id": "extend_duration",   "name": "Extend Duration",         "icon": "◉", "description": "Rotate into long-duration government bonds. High rate sensitivity — powerful in downturns.", "allocation_changes": {"bonds": +0.25, "equities": -0.15, "commodities": -0.10}, "effect_modifiers": {"bonds": 1.38}, "resilience_delta": +2,  "tag": "Duration Play",      "tag_color": "#38bdf8"},
+}
+
+SIM_SCENARIOS = [
+    {"id": "balanced",     "name": "Balanced Investor",      "subtitle": "Classic 60/40 facing macro headwinds",                      "starting_capital": 100_000, "portfolio": {"equities": 0.60, "bonds": 0.30, "real_estate": 0.00, "commodities": 0.00, "cash": 0.10, "crypto": 0.00}, "starting_event": "inflation_shock",  "event_pool": ["inflation_shock", "rate_hike_cycle", "recession", "ai_boom", "supply_chain_shock", "geopolitical_shock"], "description": "A classic balanced portfolio. Global inflation is rising and rates are about to move. Test your conviction.", "risk_level": "Medium",    "risk_color": "#F59E0B"},
+    {"id": "tech_heavy",   "name": "Technology Overweight",  "subtitle": "Concentrated equity position into a market correction",     "starting_capital": 100_000, "portfolio": {"equities": 0.80, "bonds": 0.10, "real_estate": 0.00, "commodities": 0.00, "cash": 0.10, "crypto": 0.00}, "starting_event": "tech_crash",      "event_pool": ["tech_crash", "ai_boom", "inflation_shock", "recession", "geopolitical_shock", "rate_hike_cycle"], "description": "High conviction in equities. Markets are frothy. A severe correction is already underway in technology.", "risk_level": "High",      "risk_color": "#dc2626"},
+    {"id": "conservative", "name": "Conservative Allocator", "subtitle": "Bond-heavy portfolio in an aggressive rate hike cycle",     "starting_capital": 100_000, "portfolio": {"equities": 0.25, "bonds": 0.55, "real_estate": 0.10, "commodities": 0.00, "cash": 0.10, "crypto": 0.00}, "starting_event": "rate_hike_cycle", "event_pool": ["rate_hike_cycle", "inflation_shock", "banking_crisis", "recession", "ai_boom", "currency_crisis"], "description": "Safety-first allocation. But rates are rising fast and your bond-heavy portfolio faces severe pressure.", "risk_level": "Low–Medium","risk_color": "#1D9E75"},
+    {"id": "real_assets",  "name": "Real Assets Portfolio",  "subtitle": "Hard assets at the start of a geopolitical commodity shock", "starting_capital": 100_000, "portfolio": {"equities": 0.30, "bonds": 0.10, "real_estate": 0.25, "commodities": 0.25, "cash": 0.10, "crypto": 0.00}, "starting_event": "commodity_boom",  "event_pool": ["commodity_boom", "geopolitical_shock", "supply_chain_shock", "inflation_shock", "recession", "rate_hike_cycle"], "description": "Concentrated in real assets. A commodity supercycle is beginning. Ride the wave or get crushed.", "risk_level": "Medium",    "risk_color": "#F59E0B"},
+    {"id": "crisis",       "name": "Systemic Crisis",        "subtitle": "A banking crisis unfolds from a fully invested position",   "starting_capital": 100_000, "portfolio": {"equities": 0.50, "bonds": 0.30, "real_estate": 0.10, "commodities": 0.00, "cash": 0.10, "crypto": 0.00}, "starting_event": "banking_crisis",  "event_pool": ["banking_crisis", "recession", "currency_crisis", "rate_hike_cycle", "geopolitical_shock", "supply_chain_shock"], "description": "Systemic banking stress is unfolding. Credit is tightening. Fear is spreading. Can you preserve capital?", "risk_level": "Very High", "risk_color": "#dc2626"},
+]
+
+SIM_ASSET_META = {
+    "equities":    {"label": "Equities",    "color": "#378ADD"},
+    "bonds":       {"label": "Bonds",       "color": "#7F77DD"},
+    "real_estate": {"label": "Real Estate", "color": "#1D9E75"},
+    "commodities": {"label": "Commodities", "color": "#F59E0B"},
+    "cash":        {"label": "Cash",        "color": "#94a3b8"},
+    "crypto":      {"label": "Crypto",      "color": "#f97316"},
+}
+
+SIM_SEV_COLOR = {"medium": "#F59E0B", "high": "#f97316", "severe": "#dc2626"}
+SIM_MAX_TURNS = 10
+SIM_MONTHS    = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+
+
+def _sim_init(scenario: dict) -> dict:
+    portfolio = dict(scenario["portfolio"])
+    return {
+        "scenario_id": scenario["id"], "scenario_name": scenario["name"],
+        "turn": 1, "capital": float(scenario["starting_capital"]),
+        "starting_capital": float(scenario["starting_capital"]),
+        "portfolio": portfolio, "resilience": _sim_resilience(portfolio),
+        "phase": "event", "current_event_id": scenario["starting_event"],
+        "selected_decision": None, "history": [],
+        "event_pool": list(scenario["event_pool"]), "events_seen": [], "last_snapshot": None,
+    }
+
+
+def _sim_resilience(portfolio: dict) -> float:
+    weights = list(portfolio.values())
+    hhi       = sum(w ** 2 for w in weights)
+    diversif  = max(0.0, (1.0 - hhi)) * 60.0
+    liquidity = min(portfolio.get("cash", 0.0) * 200.0, 25.0)
+    max_w     = max(weights) if weights else 0.0
+    penalty   = max(0.0, (max_w - 0.5)) * 50.0
+    return max(0.0, min(100.0, round(diversif + liquidity - penalty + 15.0, 1)))
+
+
+def _sim_apply_decision(portfolio: dict, decision: dict) -> dict:
+    new_p = dict(portfolio)
+    for asset, delta in decision.get("allocation_changes", {}).items():
+        new_p[asset] = max(0.0, new_p.get(asset, 0.0) + delta)
+    total = sum(new_p.values())
+    if total > 0:
+        new_p = {k: v / total for k, v in new_p.items()}
+    return new_p
+
+
+def _sim_resolve(state: dict) -> dict:
+    event    = SIM_EVENTS[state["current_event_id"]]
+    dec_id   = state.get("selected_decision") or "stabilize"
+    decision = SIM_DECISIONS[dec_id]
+    pre_p    = dict(state["portfolio"])
+    post_p   = _sim_apply_decision(pre_p, decision)
+    capital  = state["capital"]
+    mods     = decision.get("effect_modifiers", {})
+    asset_results, new_capital = {}, 0.0
+    for asset, alloc in post_p.items():
+        av      = capital * alloc
+        eff_ret = event["effects"].get(asset, 0.0) * mods.get(asset, 1.0)
+        nav     = av * (1.0 + eff_ret)
+        new_capital += nav
+        asset_results[asset] = {"pre_value": round(av, 0), "post_value": round(nav, 0),
+                                 "return_pct": round(eff_ret * 100.0, 1), "alloc_pct": round(alloc * 100.0, 1)}
+    cap_change     = new_capital - capital
+    cap_change_pct = (cap_change / capital * 100.0) if capital else 0.0
+    new_res = max(0.0, min(100.0,
+        _sim_resilience(post_p) + event.get("resilience_impact", 0) + decision.get("resilience_delta", 0)
+    ))
+    snapshot = {
+        "turn": state["turn"], "event_id": event["id"], "event_name": event["name"],
+        "decision_id": decision["id"], "decision_name": decision["name"],
+        "capital_before": round(capital, 0), "capital_after": round(new_capital, 0),
+        "capital_change": round(cap_change, 0), "capital_change_pct": round(cap_change_pct, 1),
+        "resilience_before": state["resilience"], "resilience_after": round(new_res, 1),
+        "portfolio_before": pre_p, "portfolio_after": post_p, "asset_results": asset_results,
+    }
+    new_state = dict(state)
+    new_state.update({
+        "capital": round(new_capital, 0), "portfolio": post_p, "resilience": round(new_res, 1),
+        "history": list(state["history"]) + [snapshot],
+        "events_seen": list(state["events_seen"]) + [event["id"]],
+        "last_snapshot": snapshot, "selected_decision": None,
+        "phase": "end" if state["turn"] >= SIM_MAX_TURNS else "resolution",
+    })
+    return new_state
+
+
+def _sim_advance(state: dict) -> dict:
+    pool    = state["event_pool"]
+    recent  = state["events_seen"][-2:]
+    choices = [e for e in pool if e not in recent] or pool
+    new_state = dict(state)
+    new_state.update({"turn": state["turn"] + 1, "phase": "event",
+                       "selected_decision": None, "current_event_id": random.choice(choices)})
+    return new_state
+
+
+@st.cache_data(ttl=7200, show_spinner=False)
+def _sim_ai_explain(snapshot_json: str) -> str:
+    api_key = get_config_value("ANTHROPIC_API_KEY")
+    if not api_key or not api_key.startswith("sk-"):
+        return "Add ANTHROPIC_API_KEY to your environment or Streamlit secrets to enable AI explanations."
+    snap   = json.loads(snapshot_json)
+    system = ("You are ORION's strategic intelligence engine. Analyze a portfolio simulation turn and explain "
+              "the outcome in exactly 3 sentences. Present tense, active voice. Reference specific numbers. "
+              "Explain the macro relationship. Note what risks were created or reduced. "
+              "Institutional tone: precise, zero fluff. Say 'the portfolio' not 'your portfolio'. No markdown. Plain text only.")
+    active = {k: f"{v['alloc_pct']:.0f}% ({v['return_pct']:+.1f}%)"
+              for k, v in snap["asset_results"].items() if v["alloc_pct"] > 0.5}
+    user = (f"Turn {snap['turn']} — Event: {snap['event_name']} — Decision: {snap['decision_name']}\n\n"
+            f"Portfolio: ${snap['capital_before']:,.0f} → ${snap['capital_after']:,.0f} ({snap['capital_change_pct']:+.1f}%)\n"
+            f"Resilience: {snap['resilience_before']:.0f} → {snap['resilience_after']:.0f}\n\n"
+            f"Asset returns: {json.dumps(active)}\n\n"
+            f"Explain why this outcome occurred and what it means for the portfolio's risk profile.")
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-haiku-4-5", "max_tokens": 280, "system": system,
+                  "messages": [{"role": "user", "content": user}]},
+            timeout=20,
+        )
+        if resp.status_code == 200:
+            return resp.json()["content"][0]["text"].strip()
+        return f"AI explanation unavailable (HTTP {resp.status_code})."
+    except Exception:
+        return "AI explanation temporarily unavailable."
+
+
+def _sim_donut(portfolio: dict, label: str = "") -> go.Figure:
+    items  = [(k, v) for k, v in portfolio.items() if v > 0.005]
+    labels = [SIM_ASSET_META[k]["label"] for k, _ in items]
+    values = [v * 100 for _, v in items]
+    colors = [SIM_ASSET_META[k]["color"] for k, _ in items]
+    fig = go.Figure(go.Pie(
+        labels=labels, values=values, hole=0.65,
+        marker=dict(colors=colors, line=dict(color="white", width=2)),
+        textinfo="label+percent", textfont=dict(size=11),
+        hovertemplate="<b>%{label}</b><br>%{value:.1f}%<extra></extra>",
+        sort=False, direction="clockwise",
+    ))
+    fig.update_layout(showlegend=False, height=240, paper_bgcolor="white",
+        margin=dict(t=10, b=10, l=10, r=10),
+        annotations=[dict(text=label, x=0.5, y=0.5, showarrow=False, font=dict(size=11, color="#aaa"))])
+    return fig
+
+
+def _sim_history_chart(history: list, starting_capital: float) -> go.Figure:
+    if not history:
+        return go.Figure()
+    turns  = [0] + [h["turn"] for h in history]
+    values = [history[0]["capital_before"]] + [h["capital_after"] for h in history]
+    pcolors = ["#94a3b8" if i == 0 else ("#1D9E75" if v >= values[i - 1] else "#dc2626")
+               for i, v in enumerate(values)]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=turns, y=values, fill="tozeroy",
+        fillcolor="rgba(55,138,221,0.07)", line=dict(color="rgba(0,0,0,0)"),
+        showlegend=False, hoverinfo="skip"))
+    fig.add_trace(go.Scatter(x=turns, y=values, mode="lines+markers",
+        line=dict(color="#378ADD", width=2.5),
+        marker=dict(size=7, color=pcolors, line=dict(color="white", width=2)),
+        hovertemplate="Turn %{x}<br><b>$%{y:,.0f}</b><extra></extra>", showlegend=False))
+    fig.add_hline(y=starting_capital, line=dict(color="rgba(0,0,0,0.1)", width=1, dash="dot"))
+    fig.update_layout(paper_bgcolor="white", plot_bgcolor="white", height=200,
+        margin=dict(t=10, b=30, l=70, r=10),
+        xaxis=dict(showgrid=False, title="Turn", tickmode="array", tickvals=turns),
+        yaxis=dict(showgrid=True, gridcolor="#f0ede8", tickformat="$,.0f"))
+    return fig
+
+
+def _sim_sector_bar(event: dict) -> go.Figure:
+    sectors = event.get("affected_sectors", {})
+    if not sectors:
+        return go.Figure()
+    sorted_s = sorted(sectors.items(), key=lambda x: x[1])
+    labels   = [s[0] for s in sorted_s]
+    values   = [s[1] for s in sorted_s]
+    colors   = ["#dc2626" if v < 0 else "#1D9E75" for v in values]
+    fig = go.Figure(go.Bar(x=values, y=labels, orientation="h",
+        marker=dict(color=colors, opacity=0.85),
+        hovertemplate="<b>%{y}</b><br>%{x:+.0f}%<extra></extra>"))
+    fig.add_vline(x=0, line=dict(color="rgba(0,0,0,0.12)", width=1))
+    fig.update_layout(paper_bgcolor="white", plot_bgcolor="white",
+        height=max(180, len(labels) * 34), margin=dict(t=10, b=20, l=140, r=40),
+        xaxis=dict(showgrid=True, gridcolor="#f0ede8", ticksuffix="%", zeroline=False),
+        yaxis=dict(showgrid=False), bargap=0.32)
+    return fig
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1554,7 +1795,7 @@ def screen_map():
 
 
     # ── TAB LAYOUT ─────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4 = st.tabs(["Portfolio map", "World exposure", "Performance", "Holdings"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Portfolio map", "World exposure", "Performance", "Holdings", "◎ Simulator"])
 
     # ── TAB 1: TREEMAP ─────────────────────────────────────────────
     with tab1:
@@ -2320,6 +2561,276 @@ def screen_map():
                         st.caption(f"Source: Yahoo Finance · Top {len(top)} holdings shown")
                     else:
                         st.info("Holdings data not available from Yahoo Finance for this ETF.")
+
+    # ── TAB 5: STRATEGY SIMULATOR ─────────────────────────────────
+    with tab5:
+        sim = st.session_state.get("sim_game")
+
+        # ── INTRO ─────────────────────────────────────────────────
+        if sim is None:
+            st.markdown('<div class="orion-logo">ORION / STRATEGY SIMULATOR</div>', unsafe_allow_html=True)
+            st.markdown('<div class="orion-headline">Macroeconomic Strategy Simulator</div>', unsafe_allow_html=True)
+            st.markdown('<div class="orion-sub">Navigate 10 cycles of economic turbulence. Make strategic portfolio decisions. Learn how global forces shape wealth. Survive what the world throws at you.</div>', unsafe_allow_html=True)
+
+            sc_cols = st.columns(3)
+            for si, scenario in enumerate(SIM_SCENARIOS):
+                with sc_cols[si % 3]:
+                    rc = scenario["risk_color"]
+                    st.markdown(f"""
+<div style="background:white;border:1px solid #e8e6e0;border-radius:14px;
+    padding:1.4rem 1.3rem 1rem;margin-bottom:1rem;min-height:195px;">
+    <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.1em;
+                color:{rc};text-transform:uppercase;margin-bottom:0.5rem;">Risk: {scenario['risk_level']}</div>
+    <div style="font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">{scenario['name']}</div>
+    <div style="font-size:12px;color:#aaa;margin-bottom:0.75rem;font-style:italic;">{scenario['subtitle']}</div>
+    <div style="font-size:12px;color:#555;line-height:1.6;">{scenario['description']}</div>
+</div>""", unsafe_allow_html=True)
+                    if st.button("Begin →", key=f"simtab_start_{scenario['id']}", use_container_width=True):
+                        st.session_state.sim_game = _sim_init(scenario)
+                        st.rerun()
+
+            st.markdown("---")
+            st.markdown('<div style="font-size:12px;color:#aaa;">10 economic cycles · No real money · AI explanations powered by Claude · Educational use only</div>', unsafe_allow_html=True)
+
+        # ── EVENT PHASE ───────────────────────────────────────────
+        elif sim.get("phase") == "event":
+            event   = SIM_EVENTS[sim["current_event_id"]]
+            cap     = sim["capital"]
+            start   = sim["starting_capital"]
+            ret_pct = (cap - start) / start * 100
+
+            st.markdown(
+                f'<div style="font-size:11px;font-family:DM Mono,monospace;letter-spacing:0.08em;'
+                f'color:#aaa;margin-bottom:0.5rem;">ORION SIMULATOR &nbsp;·&nbsp; '
+                f'{SIM_MONTHS[(sim["turn"]-1)%12].upper()} 2025 &nbsp;·&nbsp; {sim["scenario_name"].upper()}</div>',
+                unsafe_allow_html=True,
+            )
+            st.progress(sim["turn"] / SIM_MAX_TURNS)
+            st.markdown(
+                f'<div style="font-size:11px;color:#aaa;font-family:DM Mono,monospace;'
+                f'margin-top:-0.4rem;margin-bottom:1rem;">CYCLE {sim["turn"]} / {SIM_MAX_TURNS}</div>',
+                unsafe_allow_html=True,
+            )
+
+            ec1, ec2, ec3, ec4 = st.columns(4)
+            with ec1: st.metric("Portfolio Value", f"${cap:,.0f}")
+            with ec2: st.metric("Total Return", f"{ret_pct:+.1f}%", delta=f"{ret_pct:+.1f}%", delta_color="normal" if ret_pct >= 0 else "inverse")
+            with ec3: st.metric("Resilience Score", f"{sim['resilience']:.0f} / 100")
+            with ec4: st.metric("Cycle", f"{sim['turn']} of {SIM_MAX_TURNS}")
+
+            st.markdown("---")
+
+            sev   = event.get("severity", "medium")
+            color = SIM_SEV_COLOR.get(sev, "#F59E0B")
+            st.markdown(f"""
+<div style="background:white;border:1px solid #e8e6e0;border-left:3px solid {color};
+    border-radius:14px;padding:1.6rem 2rem;margin-bottom:1.25rem;">
+    <div style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.12em;
+                color:{color};text-transform:uppercase;margin-bottom:0.75rem;">
+        {event['category'].upper()} &nbsp;·&nbsp; {sev.upper()}
+    </div>
+    <div style="font-size:21px;font-weight:600;color:#1a1a1a;margin-bottom:0.6rem;line-height:1.25;">{event['headline']}</div>
+    <div style="font-size:14px;color:#555;line-height:1.7;">{event['description']}</div>
+</div>""", unsafe_allow_html=True)
+
+            ev_l, ev_r = st.columns([1, 1.6])
+            with ev_l:
+                st.markdown('<div style="font-size:11px;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;margin-bottom:0.5rem;">CURRENT ALLOCATION</div>', unsafe_allow_html=True)
+                st.plotly_chart(_sim_donut(sim["portfolio"]), use_container_width=True, config={"displayModeBar": False})
+            with ev_r:
+                st.markdown('<div style="font-size:11px;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;margin-bottom:0.5rem;">PORTFOLIO HISTORY</div>', unsafe_allow_html=True)
+                if sim["history"]:
+                    st.plotly_chart(_sim_history_chart(sim["history"], sim["starting_capital"]), use_container_width=True, config={"displayModeBar": False})
+                else:
+                    st.markdown('<div style="color:#aaa;font-size:13px;padding-top:2.5rem;text-align:center;">History will appear after turn 1</div>', unsafe_allow_html=True)
+
+            st.markdown("---")
+            _, ev_cta, _ = st.columns([2, 1, 2])
+            with ev_cta:
+                if st.button("Respond to this event →", key="simtab_respond", use_container_width=True):
+                    st.session_state.sim_game["phase"] = "decision"
+                    st.rerun()
+
+        # ── DECISION PHASE ────────────────────────────────────────
+        elif sim.get("phase") == "decision":
+            event    = SIM_EVENTS[sim["current_event_id"]]
+            sev      = event.get("severity", "medium")
+            color    = SIM_SEV_COLOR.get(sev, "#F59E0B")
+            selected = sim.get("selected_decision")
+
+            st.markdown(f"""
+<div style="background:white;border:1px solid #e8e6e0;border-left:3px solid {color};border-radius:10px;
+    padding:0.85rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;">
+    <span style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.1em;color:{color};text-transform:uppercase;">{event['name']}</span>
+    <span style="font-size:14px;color:#555;"> — {event['headline']}</span>
+</div>""", unsafe_allow_html=True)
+
+            st.markdown('<div style="font-size:22px;font-weight:500;color:#1a1a1a;margin-bottom:0.35rem;">Choose your strategic response</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:13px;color:#aaa;margin-bottom:1.75rem;">Your decision reshapes the portfolio before market effects are applied.</div>', unsafe_allow_html=True)
+
+            dec_ids  = SIM_EVENT_DECISIONS.get(sim["current_event_id"], list(SIM_DECISIONS.keys())[:4])
+            dec_cols = st.columns(len(dec_ids))
+            for di, dec_id in enumerate(dec_ids):
+                dec    = SIM_DECISIONS[dec_id]
+                is_sel = selected == dec_id
+                border = "#378ADD" if is_sel else "#e8e6e0"
+                bg     = "#f0f7ff" if is_sel else "white"
+                tc     = dec.get("tag_color", "#aaa")
+                with dec_cols[di]:
+                    st.markdown(f"""
+<div style="background:{bg};border:1px solid {border};border-radius:12px;
+    padding:1.2rem 1.1rem 1rem;min-height:170px;margin-bottom:0.5rem;">
+    <div style="font-size:18px;color:#378ADD;margin-bottom:7px;">{dec['icon']}</div>
+    <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:5px;">{dec['name']}</div>
+    <div style="font-size:12px;color:#777;line-height:1.55;margin-bottom:10px;">{dec['description']}</div>
+    <span style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.07em;
+                 color:{tc};background:#f8f7f4;border:1px solid #e8e6e0;
+                 border-radius:20px;padding:2px 10px;text-transform:uppercase;">{dec['tag']}</span>
+</div>""", unsafe_allow_html=True)
+                    btn_lbl = "✓ Selected" if is_sel else "Select"
+                    if st.button(btn_lbl, key=f"simtab_pick_{dec_id}", use_container_width=True):
+                        st.session_state.sim_game["selected_decision"] = dec_id
+                        st.rerun()
+
+            st.markdown("---")
+
+            if selected:
+                chosen = SIM_DECISIONS[selected]
+                st.markdown(f"""
+<div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;
+    padding:0.9rem 1.25rem;margin-bottom:1.25rem;">
+    <span style="font-size:11px;font-family:'DM Mono',monospace;letter-spacing:0.1em;color:#378ADD;">SELECTED RESPONSE</span>
+    <span style="font-size:14px;font-weight:600;color:#1a1a1a;margin-left:1rem;">{chosen['name']}</span>
+    <span style="font-size:13px;color:#555;"> — {chosen['description']}</span>
+</div>""", unsafe_allow_html=True)
+
+            d_back, d_go = st.columns(2)
+            with d_back:
+                if st.button("← Back", key="simtab_back", use_container_width=True):
+                    st.session_state.sim_game["phase"] = "event"
+                    st.rerun()
+            with d_go:
+                go_lbl = "Simulate outcome →" if selected else "Simulate without changes →"
+                if st.button(go_lbl, key="simtab_go", use_container_width=True):
+                    st.session_state.sim_game = _sim_resolve(st.session_state.sim_game)
+                    st.rerun()
+
+        # ── RESOLUTION PHASE ──────────────────────────────────────
+        elif sim.get("phase") in ("resolution", "end") and sim.get("last_snapshot"):
+            snap     = sim["last_snapshot"]
+            event    = SIM_EVENTS[snap["event_id"]]
+            decision = SIM_DECISIONS[snap["decision_id"]]
+            chg_pct  = snap["capital_change_pct"]
+
+            st.markdown(f'<div style="font-size:22px;font-weight:500;color:#1a1a1a;margin-bottom:0.3rem;">Cycle {snap["turn"]} resolved</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:14px;color:#aaa;margin-bottom:1.5rem;">{event["name"]} &nbsp;·&nbsp; {decision["name"]}</div>', unsafe_allow_html=True)
+
+            rr1, rr2, rr3, rr4 = st.columns(4)
+            with rr1: st.metric("Portfolio Value", f"${snap['capital_after']:,.0f}")
+            with rr2:
+                res_d = snap["resilience_after"] - snap["resilience_before"]
+                st.metric("Resilience", f"{snap['resilience_after']:.0f}", delta=f"{res_d:+.0f}", delta_color="normal" if res_d >= 0 else "inverse")
+            with rr3:
+                st.metric("This Cycle", f"{chg_pct:+.1f}%", delta=f"${snap['capital_change']:+,.0f}", delta_color="normal" if chg_pct >= 0 else "inverse")
+            with rr4:
+                total_ret_r = (snap["capital_after"] - sim["starting_capital"]) / sim["starting_capital"] * 100
+                st.metric("Total Return", f"{total_ret_r:+.1f}%", delta_color="normal" if total_ret_r >= 0 else "inverse")
+
+            st.markdown("---")
+
+            st.markdown('<div style="font-size:11px;letter-spacing:0.12em;color:#aaa;text-transform:uppercase;margin-bottom:0.5rem;">◎ STRATEGIC ANALYSIS</div>', unsafe_allow_html=True)
+            with st.spinner("Analyzing outcome…"):
+                ai_text = _sim_ai_explain(json.dumps(snap, default=str))
+            st.markdown(f"""
+<div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:14px;padding:1.5rem 1.75rem;margin:1rem 0;">
+    <div style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.14em;
+                color:#378ADD;text-transform:uppercase;margin-bottom:0.75rem;">◎ ORION Intelligence</div>
+    <div style="font-size:14px;color:#1a1a1a;line-height:1.75;">{ai_text}</div>
+</div>""", unsafe_allow_html=True)
+
+            res_t1, res_t2 = st.tabs(["  Sector Impact  ", "  Asset Breakdown  "])
+            with res_t1:
+                st.markdown('<div style="font-size:11px;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;margin:0.5rem 0;">SECTOR IMPACT THIS CYCLE</div>', unsafe_allow_html=True)
+                st.plotly_chart(_sim_sector_bar(event), use_container_width=True, config={"displayModeBar": False})
+            with res_t2:
+                ab_l, ab_r = st.columns(2)
+                with ab_l:
+                    st.markdown("**Before decision**")
+                    st.plotly_chart(_sim_donut(snap["portfolio_before"], "Before"), use_container_width=True, config={"displayModeBar": False})
+                with ab_r:
+                    st.markdown("**After decision + market**")
+                    st.plotly_chart(_sim_donut(snap["portfolio_after"], "After"), use_container_width=True, config={"displayModeBar": False})
+                ab_rows = [{"Asset": SIM_ASSET_META[a]["label"],
+                            "Allocation": f"{r['alloc_pct']:.1f}%",
+                            "Return": f"{r['return_pct']:+.1f}%",
+                            "Value Before": f"${r['pre_value']:,.0f}",
+                            "Value After": f"${r['post_value']:,.0f}",
+                            "P&L": f"${r['post_value']-r['pre_value']:+,.0f}"}
+                           for a, r in snap["asset_results"].items() if r["alloc_pct"] > 0.1]
+                if ab_rows:
+                    st.dataframe(pd.DataFrame(ab_rows), use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+            if sim["phase"] == "end":
+                _, fin_col, _ = st.columns([1.5, 1, 1.5])
+                with fin_col:
+                    if st.button("View Final Results →", key="simtab_final", use_container_width=True):
+                        st.session_state.sim_game["last_snapshot"] = None
+                        st.rerun()
+            else:
+                _, nxt_col, _ = st.columns([1.5, 1, 1.5])
+                with nxt_col:
+                    if st.button(f"Continue to Cycle {sim['turn'] + 1} →", key="simtab_next", use_container_width=True):
+                        st.session_state.sim_game = _sim_advance(st.session_state.sim_game)
+                        st.rerun()
+
+        # ── END SCREEN ────────────────────────────────────────────
+        else:
+            history    = sim.get("history", [])
+            final_cap  = sim["capital"]
+            start_cap  = sim["starting_capital"]
+            total_ret  = (final_cap - start_cap) / start_cap * 100
+            resilience = sim["resilience"]
+            score = total_ret * 0.6 + resilience * 0.4
+            if score >= 40:    grade, grade_color = "S", "#1D9E75"
+            elif score >= 20:  grade, grade_color = "A", "#378ADD"
+            elif score >= 5:   grade, grade_color = "B", "#7F77DD"
+            elif score >= -5:  grade, grade_color = "C", "#F59E0B"
+            elif score >= -15: grade, grade_color = "D", "#f97316"
+            else:              grade, grade_color = "F", "#dc2626"
+
+            st.markdown('<div style="font-size:30px;font-weight:300;color:#1a1a1a;margin-bottom:0.35rem;">Simulation Complete</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:14px;color:#aaa;margin-bottom:2rem;">{sim["scenario_name"]} &nbsp;·&nbsp; {SIM_MAX_TURNS} economic cycles</div>', unsafe_allow_html=True)
+
+            en1, en2, en3, en4 = st.columns(4)
+            with en1: st.metric("Final Value", f"${final_cap:,.0f}")
+            with en2: st.metric("Total Return", f"{total_ret:+.1f}%", delta_color="normal" if total_ret >= 0 else "inverse")
+            with en3: st.metric("Final Resilience", f"{resilience:.0f} / 100")
+            with en4:
+                st.markdown(f"""
+<div style="background:white;border:1px solid #e8e6e0;border-radius:12px;padding:1rem;text-align:center;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#aaa;margin-bottom:8px;">Performance Grade</div>
+    <div style="font-size:42px;font-weight:700;color:{grade_color};font-family:'DM Mono',monospace;line-height:1;">{grade}</div>
+</div>""", unsafe_allow_html=True)
+
+            st.markdown("---")
+            if history:
+                st.markdown("**Portfolio value over 10 cycles**")
+                st.plotly_chart(_sim_history_chart(history, start_cap), use_container_width=True, config={"displayModeBar": False})
+
+                st.markdown("**Cycle-by-cycle history**")
+                end_rows = [{"Cycle": h["turn"], "Event": h["event_name"], "Decision": h["decision_name"],
+                             "Return": f"{'▲' if h['capital_change_pct'] >= 0 else '▼'} {h['capital_change_pct']:+.1f}%",
+                             "Value After": f"${h['capital_after']:,.0f}",
+                             "Resilience": f"{h['resilience_after']:.0f}"} for h in history]
+                st.dataframe(pd.DataFrame(end_rows), use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+            _, pa_col, _ = st.columns([2, 1, 2])
+            with pa_col:
+                if st.button("Play Again →", key="simtab_again", use_container_width=True):
+                    st.session_state.sim_game = None
+                    st.rerun()
 
 # ══════════════════════════════════════════════════════════════════
 # ROUTER
