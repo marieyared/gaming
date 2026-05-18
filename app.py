@@ -2911,6 +2911,16 @@ def screen_map():
                 border = "#378ADD" if is_sel else "#e8e6e0"
                 bg     = "#f0f7ff" if is_sel else "white"
                 tc     = dec.get("tag_color", "#aaa")
+                _hint_parts = []
+                for _asset, _mult in dec.get("effect_modifiers", {}).items():
+                    if _mult < 1.0:
+                        _hint_parts.append(f"{_asset} return reduced {round((1 - _mult) * 100):.0f}%")
+                    elif _mult > 1.0:
+                        _hint_parts.append(f"{_asset} return amplified +{round((_mult - 1) * 100):.0f}%")
+                _rdelta = dec.get("resilience_delta", 0)
+                if _rdelta:
+                    _hint_parts.append(f"resilience {'+' if _rdelta > 0 else ''}{_rdelta}")
+                _hint = " · ".join(_hint_parts) if _hint_parts else "No modifier this turn"
                 with dec_cols[di]:
                     st.markdown(f"""
 <div style="background:{bg};border:1px solid {border};border-radius:12px;
@@ -2922,6 +2932,7 @@ def screen_map():
         <div style="font-size:12px;color:#777;line-height:1.55;margin-bottom:10px;">{dec['description']}</div>
     </div>
     <div>
+        <div style="font-size:11px;color:#999;margin-bottom:6px;">{_hint}</div>
         <span style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.07em;
                      color:{tc};background:#f8f7f4;border:1px solid #e8e6e0;
                      border-radius:20px;padding:2px 10px;text-transform:uppercase;">{dec['tag']}</span>
