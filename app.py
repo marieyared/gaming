@@ -619,6 +619,39 @@ COUNTRY_NAMES = {
     "Other":"Rest of world",
 }
 
+WORLD_COUNTRIES = [
+    "Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda",
+    "Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain",
+    "Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia",
+    "Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso",
+    "Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic",
+    "Chad","Chile","China","Colombia","Comoros","Congo (Democratic Republic)",
+    "Congo (Republic)","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic",
+    "Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt",
+    "El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia",
+    "Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece",
+    "Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras",
+    "Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy",
+    "Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait",
+    "Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein",
+    "Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali",
+    "Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia",
+    "Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar",
+    "Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger",
+    "Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau",
+    "Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland",
+    "Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis",
+    "Saint Lucia","Saint Vincent and the Grenadines","Samoa","San Marino",
+    "Sao Tome and Principe","Saudi Arabia","Senegal","Serbia","Seychelles",
+    "Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia",
+    "South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan",
+    "Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania",
+    "Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia",
+    "Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates",
+    "United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City",
+    "Venezuela","Vietnam","Yemen","Zambia","Zimbabwe",
+]
+
 # Reverse map — full country name → ISO-2 code; used for real estate geo lookup
 COUNTRY_NAME_TO_CODE = {v: k for k, v in COUNTRY_NAMES.items()}
 
@@ -1211,12 +1244,34 @@ def screen_entry():
                     key=f"re_city_{i}", placeholder="e.g. New York",
                 )
             with rc2:
-                countries = sorted([COUNTRY_NAMES.get(c, c) for c in COUNTRY_NAMES.keys() if c != "Other"])
-                c_idx = countries.index(rrow.get("country", "United States")) if rrow.get("country") in countries else 0
-                st.session_state.realestate_rows[i]["country"] = st.selectbox(
-                    "Country", countries, index=c_idx,
-                    key=f"re_country_{i}", label_visibility="collapsed",
+                q_key = f"re_country_q_{i}"
+                sel_key = f"re_country_sel_{i}"
+                if q_key not in st.session_state:
+                    st.session_state[q_key] = rrow.get("country", "United States")
+
+                def _pick_country(row_idx=i, sk=sel_key, qk=q_key):
+                    chosen = st.session_state.get(sk)
+                    if chosen:
+                        st.session_state.realestate_rows[row_idx]["country"] = chosen
+                        st.session_state[qk] = chosen
+
+                st.text_input(
+                    "Country", key=q_key, label_visibility="collapsed",
+                    placeholder="Type to search countries…",
                 )
+                query = st.session_state.get(q_key, "")
+                if query and query not in WORLD_COUNTRIES:
+                    matches = [c for c in WORLD_COUNTRIES if query.lower() in c.lower()]
+                    if matches:
+                        st.selectbox(
+                            "Select country", matches,
+                            key=sel_key, index=None,
+                            placeholder="Select from matches…",
+                            label_visibility="collapsed",
+                            on_change=_pick_country,
+                        )
+                elif query in WORLD_COUNTRIES:
+                    st.session_state.realestate_rows[i]["country"] = query
             with rc3:
                 st.session_state.realestate_rows[i]["value"] = st.number_input(
                     "Estimated value ($)", value=float(rrow.get("value", 300000.0)),
