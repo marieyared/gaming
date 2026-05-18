@@ -2358,7 +2358,7 @@ def screen_map():
             cname  = COUNTRY_NAMES.get(code, code)
             sector = "ETF / Fund" if holding_is_etf(isin) else max(secs.items(), key=lambda x: x[1])[0]
             is_editing = st.session_state._editing_holding == i
-            editable   = h_type == "stock_etf"
+            editable   = h_type in ("stock_etf", "cash")
 
             rc0, rc1, rc2, rc3, rc4, rc5, rc6 = st.columns([3, 1.5, 1.8, 1.2, 0.9, 1.0, 1.0])
             with rc0:
@@ -2394,23 +2394,31 @@ def screen_map():
                 with st.container(border=True):
                     st.markdown(f"**Editing: {name}**")
                     with st.form(key=f"edit_form_{i}"):
-                        fc1, fc2, fc3 = st.columns(3)
-                        with fc1:
-                            new_cur = st.number_input(
-                                "Current value ($)", value=float(cur),
+                        if h_type == "cash":
+                            new_cur  = st.number_input(
+                                "Amount ($)", value=float(cur),
                                 min_value=0.0, step=1000.0, format="%.0f",
                             )
-                        with fc2:
-                            new_paid = st.number_input(
-                                "Amount paid ($)", value=float(paid),
-                                min_value=0.0, step=1000.0, format="%.0f",
-                            )
-                        with fc3:
-                            new_date = st.date_input(
-                                "Purchase date",
-                                value=h.get("date", date.today()),
-                                min_value=date(2000, 1, 1),
-                            )
+                            new_paid = new_cur
+                            new_date = h.get("date", date.today())
+                        else:
+                            fc1, fc2, fc3 = st.columns(3)
+                            with fc1:
+                                new_cur = st.number_input(
+                                    "Current value ($)", value=float(cur),
+                                    min_value=0.0, step=1000.0, format="%.0f",
+                                )
+                            with fc2:
+                                new_paid = st.number_input(
+                                    "Amount paid ($)", value=float(paid),
+                                    min_value=0.0, step=1000.0, format="%.0f",
+                                )
+                            with fc3:
+                                new_date = st.date_input(
+                                    "Purchase date",
+                                    value=h.get("date", date.today()),
+                                    min_value=date(2000, 1, 1),
+                                )
                         saved     = st.form_submit_button("Save", type="primary")
                         cancelled = st.form_submit_button("Cancel")
 
@@ -2667,13 +2675,18 @@ def screen_map():
                 with dec_cols[di]:
                     st.markdown(f"""
 <div style="background:{bg};border:1px solid {border};border-radius:12px;
-    padding:1.2rem 1.1rem 1rem;min-height:170px;margin-bottom:0.5rem;">
-    <div style="font-size:18px;color:#378ADD;margin-bottom:7px;">{dec['icon']}</div>
-    <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:5px;">{dec['name']}</div>
-    <div style="font-size:12px;color:#777;line-height:1.55;margin-bottom:10px;">{dec['description']}</div>
-    <span style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.07em;
-                 color:{tc};background:#f8f7f4;border:1px solid #e8e6e0;
-                 border-radius:20px;padding:2px 10px;text-transform:uppercase;">{dec['tag']}</span>
+    padding:1.2rem 1.1rem 1rem;min-height:230px;margin-bottom:0.5rem;
+    display:flex;flex-direction:column;">
+    <div style="flex:1;">
+        <div style="font-size:18px;color:#378ADD;margin-bottom:7px;">{dec['icon']}</div>
+        <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:5px;">{dec['name']}</div>
+        <div style="font-size:12px;color:#777;line-height:1.55;margin-bottom:10px;">{dec['description']}</div>
+    </div>
+    <div>
+        <span style="font-size:10px;font-family:'DM Mono',monospace;letter-spacing:0.07em;
+                     color:{tc};background:#f8f7f4;border:1px solid #e8e6e0;
+                     border-radius:20px;padding:2px 10px;text-transform:uppercase;">{dec['tag']}</span>
+    </div>
 </div>""", unsafe_allow_html=True)
                     btn_lbl = "✓ Selected" if is_sel else "Select"
                     if st.button(btn_lbl, key=f"simtab_pick_{dec_id}", use_container_width=True):
