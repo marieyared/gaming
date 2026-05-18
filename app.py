@@ -904,6 +904,49 @@ def _sim_sector_bar(event: dict) -> go.Figure:
     return fig
 
 
+# ── Portfolio export / import helpers ─────────────────────────────
+def _serialize_portfolio() -> str:
+    def _cvt(v):
+        return v.isoformat() if isinstance(v, date) else v
+    def _cvt_list(lst):
+        return [{k: _cvt(v) for k, v in item.items()} if isinstance(item, dict) else item
+                for item in (lst or [])]
+    return json.dumps({
+        "version": 1,
+        "entry_rows":      _cvt_list(st.session_state.get("entry_rows", [])),
+        "cash_rows":       list(st.session_state.get("cash_rows") or []),
+        "bond_rows":       _cvt_list(st.session_state.get("bond_rows", [])),
+        "realestate_rows": _cvt_list(st.session_state.get("realestate_rows", [])),
+        "crypto_rows":     list(st.session_state.get("crypto_rows") or []),
+        "commodity_rows":  list(st.session_state.get("commodity_rows") or []),
+        "debt_rows":       list(st.session_state.get("debt_rows") or []),
+        "holdings":        _cvt_list(st.session_state.get("holdings", [])),
+    }, indent=2)
+
+_PORTFOLIO_DATE_FIELDS: dict[str, set] = {
+    "entry_rows":      {"date"},
+    "bond_rows":       {"maturity", "purchase_date"},
+    "realestate_rows": {"purchase_date"},
+    "holdings":        {"date", "maturity"},
+}
+
+def _restore_portfolio(payload: dict) -> None:
+    def _fix(lst, fields):
+        out = []
+        for item in (lst or []):
+            if isinstance(item, dict) and fields:
+                item = {k: (date.fromisoformat(v) if k in fields and isinstance(v, str) else v)
+                        for k, v in item.items()}
+            out.append(item)
+        return out
+    for key in ("entry_rows", "cash_rows", "bond_rows", "realestate_rows",
+                "crypto_rows", "commodity_rows", "debt_rows", "holdings"):
+        if key in payload:
+            st.session_state[key] = _fix(payload[key], _PORTFOLIO_DATE_FIELDS.get(key, set()))
+    if st.session_state.get("holdings"):
+        st.session_state.screen = "map"
+
+
 # ══════════════════════════════════════════════════════════════════
 # SCREEN 1 — ENTRY
 # ══════════════════════════════════════════════════════════════════
@@ -1521,9 +1564,33 @@ def screen_map():
 
     # ── nav ────────────────────────────────────────────────────────
     st.markdown('<div class="orion-logo">ORION / PORTFOLIO INTELLIGENCE</div>', unsafe_allow_html=True)
-    if st.button("← Back to holdings"):
-        st.session_state.screen = "entry"
-        st.rerun()
+    _nc1, _nc2, _nc3 = st.columns([3, 1, 1])
+    with _nc1:
+        if st.button("← Back to holdings"):
+            st.session_state.screen = "entry"
+            st.rerun()
+    with _nc2:
+        st.download_button(
+            "↓ Export JSON",
+            data=_serialize_portfolio(),
+            file_name="orion_portfolio.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+    with _nc3:
+        if st.button("↑ Import JSON", use_container_width=True):
+            st.session_state._show_import = not st.session_state.get("_show_import", False)
+    if st.session_state.get("_show_import", False):
+        _uploaded = st.file_uploader(
+            "Upload portfolio JSON", type=["json"], label_visibility="collapsed",
+        )
+        if _uploaded is not None:
+            try:
+                _restore_portfolio(json.loads(_uploaded.read()))
+                st.session_state._show_import = False
+                st.rerun()
+            except Exception as _exc:
+                st.error(f"Import failed: {_exc}")
     st.markdown("---")
     if "openfigi" in st.session_state.api_issues:
         st.warning(st.session_state.api_issues["openfigi"])
