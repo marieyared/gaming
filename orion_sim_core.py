@@ -307,6 +307,378 @@ EVENTS = {
             "European equity indices fell 15%, and defense stocks surged 20%+."
         ),
     },
+    "broad_market_crash": {
+        "id": "broad_market_crash",
+        "name": "Broad Market Crash",
+        "category": "market",
+        "severity": "severe",
+        "headline": "S&P 500 Falls 20%+ as Correlations Converge to 1",
+        "description": (
+            "A systemic panic grips every equity market simultaneously. Sector rotation offers no refuge — "
+            "growth and value fall together. Only bonds, cash, and commodities provide meaningful protection. "
+            "Unlike a sector crash, there is no safe corner within stocks."
+        ),
+        "effects": {
+            "equities":    -0.22,
+            "bonds":       +0.07,
+            "real_estate": -0.06,
+            "commodities": +0.03,
+            "cash":         0.00,
+            "crypto":      -0.32,
+        },
+        "resilience_impact": -16,
+        "region_stress": {"us": 85, "europe": 80, "asia": 78, "emerging": 88, "gulf": 50},
+        "affected_sectors": {
+            "Equities (Broad)": -22, "Technology": -24, "Financials": -20,
+            "Fixed Income": +7, "Commodities": +3, "Cash": 0,
+        },
+        "historical_analogue": (
+            "Mirrors 2008 GFC, when the S&P 500 lost 57% peak-to-trough and all equity correlations surged toward 1. "
+            "Even 2020's COVID crash delivered -34% in 33 days with no defensive equity sector spared. "
+            "1987's Black Monday saw a single-day -22.6% drop with no rotation opportunity whatsoever."
+        ),
+    },
+    "china_property_crisis": {
+        "id": "china_property_crisis",
+        "name": "China Property Crisis",
+        "category": "financial",
+        "severity": "high",
+        "headline": "Chinese Property Debt Contagion Spreads Globally",
+        "description": (
+            "Overleveraged Chinese property developers default at scale, triggering contagion across EM equities "
+            "and Asian banking systems. Commodity demand fears send iron ore and copper into freefall. "
+            "European and Asian banks with China exposure face steep write-downs."
+        ),
+        "effects": {
+            "equities":    -0.12,
+            "bonds":       -0.04,
+            "real_estate": -0.10,
+            "commodities": -0.10,
+            "cash":        +0.01,
+            "crypto":      -0.12,
+        },
+        "resilience_impact": -10,
+        "region_stress": {"asia": 90, "emerging": 82, "europe": 70, "gulf": 55, "us": 40},
+        "affected_sectors": {
+            "Real Estate": -20, "Financials": -15, "Materials": -14,
+            "Emerging Markets": -18, "Commodities": -10, "Fixed Income": -4,
+        },
+        "historical_analogue": (
+            "Mirrors the 2021–2023 Evergrande collapse: $300B+ in liabilities, China's property sector losing "
+            "~70% of its equity market cap, and iron ore falling 40% from peak on demand destruction fears. "
+            "MSCI China fell 52% in 2021 alone — the worst year for Chinese equities since 2008."
+        ),
+    },
+    "european_energy_crisis": {
+        "id": "european_energy_crisis",
+        "name": "European Energy Crisis",
+        "category": "geopolitical",
+        "severity": "high",
+        "headline": "Gas Supply Shock Crushes European Manufacturing",
+        "description": (
+            "A sudden disruption to European natural gas supply sends energy prices surging. "
+            "European equity markets fall sharply as manufacturing margin compression accelerates. "
+            "Energy commodities spike while industrials and consumer sectors face severe cost pressure."
+        ),
+        "effects": {
+            "equities":    -0.10,
+            "bonds":       -0.02,
+            "real_estate": -0.05,
+            "commodities": +0.20,
+            "cash":        +0.01,
+            "crypto":      -0.08,
+        },
+        "resilience_impact": -9,
+        "region_stress": {"europe": 92, "emerging": 55, "asia": 48, "us": 28, "gulf": 5},
+        "affected_sectors": {
+            "Energy": +22, "Commodities": +20, "Industrials": -14,
+            "Consumer Discretionary": -10, "Technology": -8, "Fixed Income": -2,
+        },
+        "historical_analogue": (
+            "Mirrors the 2022 European energy crisis: Dutch TTF gas prices surged 400%+ after Russia curtailed "
+            "supplies post-Ukraine invasion. The STOXX Europe 600 fell 20%, German industrial output contracted, "
+            "and the EUR fell to parity with the USD for the first time in 20 years."
+        ),
+    },
+    "fed_rate_cut_cycle": {
+        "id": "fed_rate_cut_cycle",
+        "name": "Fed Rate Cut Cycle",
+        "category": "monetary",
+        "severity": "medium",
+        "headline": "Central Bank Pivots — Rate Cut Cycle Begins",
+        "description": (
+            "After an extended tightening cycle, the central bank pivots to easing. Bond yields fall sharply "
+            "as duration assets reprice. Equities rally on improved liquidity conditions. Real estate recovers. "
+            "Cash yields fall, pushing investors back into risk assets."
+        ),
+        "effects": {
+            "equities":    +0.10,
+            "bonds":       +0.12,
+            "real_estate": +0.08,
+            "commodities": -0.02,
+            "cash":        -0.02,
+            "crypto":      +0.15,
+        },
+        "resilience_impact": +3,
+        "region_stress": {"us": 8, "europe": 12, "asia": 15, "emerging": 10, "gulf": 10},
+        "affected_sectors": {
+            "Fixed Income": +12, "Real Estate": +10, "Technology": +12,
+            "Utilities": +8, "Financials": -3, "Cash": -2,
+        },
+        "historical_analogue": (
+            "Echoes the 2019 Fed pivot: three cuts totalling 75bps sent the S&P 500 up 29% for the year "
+            "and the Bloomberg US Agg bond index up 8.7%. The 2024 September cut kicked off a new easing "
+            "cycle, with equities and bonds rallying simultaneously for the first time since 2017."
+        ),
+    },
+    "real_estate_recovery": {
+        "id": "real_estate_recovery",
+        "name": "Real Estate Recovery",
+        "category": "market",
+        "severity": "medium",
+        "headline": "Property Markets Rebound After Correction",
+        "description": (
+            "A depressed real estate market finds its floor and begins recovering. REITs surge as cap rate "
+            "compression returns. Financials benefit from improved loan books and reduced write-down pressure. "
+            "Broader equities get a modest tailwind from improved consumer balance sheets."
+        ),
+        "effects": {
+            "equities":    +0.05,
+            "bonds":       +0.03,
+            "real_estate": +0.14,
+            "commodities": +0.02,
+            "cash":         0.00,
+            "crypto":      +0.06,
+        },
+        "resilience_impact": +3,
+        "region_stress": {"us": 10, "europe": 18, "asia": 22, "emerging": 28, "gulf": 12},
+        "affected_sectors": {
+            "Real Estate": +14, "Financials": +8, "Industrials": +5,
+            "Consumer Discretionary": +4, "Fixed Income": +3, "Materials": +3,
+        },
+        "historical_analogue": (
+            "Mirrors the 2012–2013 US housing recovery: Case-Shiller home prices rose 12% nationally, "
+            "the FTSE NAREIT All REITs Index gained 20%, and bank stocks recovered strongly as mortgage "
+            "delinquencies fell from 10% back toward historical norms."
+        ),
+    },
+    "emerging_market_boom": {
+        "id": "emerging_market_boom",
+        "name": "Emerging Market Boom",
+        "category": "macro",
+        "severity": "medium",
+        "headline": "Weak Dollar Triggers EM Rally and Commodity Surge",
+        "description": (
+            "A weakening US dollar triggers a broad emerging market rally. EM equities and local currencies "
+            "surge as capital flows rotate out of US assets. Commodity exporters benefit doubly from dollar "
+            "weakness and rising demand. Developed market equities lag."
+        ),
+        "effects": {
+            "equities":    +0.08,
+            "bonds":       +0.02,
+            "real_estate": +0.04,
+            "commodities": +0.10,
+            "cash":        -0.01,
+            "crypto":      +0.12,
+        },
+        "resilience_impact": +3,
+        "region_stress": {"emerging": 0, "asia": 5, "gulf": 8, "europe": 15, "us": 18},
+        "affected_sectors": {
+            "Emerging Markets": +18, "Commodities": +10, "Materials": +8,
+            "Energy": +6, "Technology": +5, "Fixed Income": +2,
+        },
+        "historical_analogue": (
+            "Echoes the 2003–2007 EM supercycle: MSCI Emerging Markets gained 400% from 2003 to 2007 as "
+            "China's commodity appetite drove a global boom. The 2009 EM recovery saw MSCI EM gain 74% in "
+            "a single year as the dollar weakened 7% and commodity prices rebounded sharply."
+        ),
+    },
+    "global_liquidity_surge": {
+        "id": "global_liquidity_surge",
+        "name": "Global Liquidity Surge",
+        "category": "monetary",
+        "severity": "medium",
+        "headline": "Central Banks Inject Capital — Risk Assets Surge",
+        "description": (
+            "Coordinated central bank easing floods the financial system with liquidity. Risk assets rally "
+            "broadly as the cost of capital collapses. Bonds remain relatively flat as growth expectations "
+            "offset rate declines. Crypto and speculative assets benefit disproportionately."
+        ),
+        "effects": {
+            "equities":    +0.14,
+            "bonds":       +0.03,
+            "real_estate": +0.08,
+            "commodities": +0.06,
+            "cash":         0.00,
+            "crypto":      +0.28,
+        },
+        "resilience_impact": +5,
+        "region_stress": {"us": 5, "europe": 8, "asia": 6, "emerging": 4, "gulf": 5},
+        "affected_sectors": {
+            "Technology": +18, "Consumer Discretionary": +12, "Real Estate": +8,
+            "Financials": +6, "Commodities": +6, "Fixed Income": +3,
+        },
+        "historical_analogue": (
+            "Mirrors the 2020 QE surge: the Fed expanded its balance sheet from $4.2T to $7.2T in 12 weeks — "
+            "the fastest monetary expansion in history. The S&P 500 gained 68% from March 2020 lows to "
+            "year-end 2021. Bitcoin rose from $5,000 to $60,000 during the same liquidity window."
+        ),
+    },
+    "energy_transition_boom": {
+        "id": "energy_transition_boom",
+        "name": "Energy Transition Boom",
+        "category": "technology",
+        "severity": "medium",
+        "headline": "Green Investment Wave Reshapes Industrial Landscape",
+        "description": (
+            "A surge in clean energy investment — driven by policy incentives and falling technology costs — "
+            "powers a boom in infrastructure, materials, and renewables. Traditional energy lags as capital "
+            "rotates toward the transition. Copper, lithium, and industrial metals lead commodity gains."
+        ),
+        "effects": {
+            "equities":    +0.10,
+            "bonds":       +0.00,
+            "real_estate": +0.03,
+            "commodities": +0.06,
+            "cash":         0.00,
+            "crypto":      +0.08,
+        },
+        "resilience_impact": +4,
+        "region_stress": {"europe": 5, "us": 8, "asia": 20, "emerging": 25, "gulf": 60},
+        "affected_sectors": {
+            "Industrials": +15, "Materials": +14, "Technology": +12,
+            "Utilities": +10, "Energy": -8, "Fixed Income": 0,
+        },
+        "historical_analogue": (
+            "Mirrors the post-IRA (Inflation Reduction Act) boom of 2022–2023: US clean energy investment "
+            "surged 40% YoY, solar installations doubled, and clean energy ETFs gained 40–50% in H2 2022. "
+            "Lithium carbonate prices rose 500% from 2020 to 2022 on EV battery demand projections."
+        ),
+    },
+    "post_crisis_recovery": {
+        "id": "post_crisis_recovery",
+        "name": "Post-Crisis Recovery",
+        "category": "market",
+        "severity": "medium",
+        "headline": "Sharp Rebound Follows Prolonged Downturn",
+        "description": (
+            "After an extended drawdown, markets snap back with force. Equities lead the recovery as risk "
+            "appetite returns. Bonds give back safe-haven gains as yields normalize. Real assets recover "
+            "alongside improving growth expectations."
+        ),
+        "effects": {
+            "equities":    +0.20,
+            "bonds":       -0.05,
+            "real_estate": +0.10,
+            "commodities": +0.08,
+            "cash":         0.00,
+            "crypto":      +0.35,
+        },
+        "resilience_impact": +8,
+        "region_stress": {"us": 5, "europe": 8, "asia": 10, "emerging": 15, "gulf": 10},
+        "affected_sectors": {
+            "Technology": +22, "Consumer Discretionary": +18, "Financials": +15,
+            "Industrials": +12, "Fixed Income": -5, "Cash": 0,
+        },
+        "historical_analogue": (
+            "Echoes the 2009 recovery: the S&P 500 gained 65% in the 12 months following its March 2009 trough. "
+            "The 2020 post-COVID rebound was even sharper — the Nasdaq gained 75% from March to December 2020, "
+            "and MSCI EM rose 74% in 2009 as capital rotated aggressively back into risk assets."
+        ),
+    },
+    "mild_economic_slowdown": {
+        "id": "mild_economic_slowdown",
+        "name": "Mild Economic Slowdown",
+        "category": "macro",
+        "severity": "low",
+        "headline": "Growth Cools — No Recession Signal Yet",
+        "description": (
+            "Economic momentum fades without tipping into recession. Consumer confidence slips, PMIs edge "
+            "below 50, and earnings growth slows. Bonds benefit modestly from lower rate expectations. "
+            "Cash holds firm. Equities drag slightly on reduced earnings forecasts."
+        ),
+        "effects": {
+            "equities":    -0.04,
+            "bonds":       +0.03,
+            "real_estate": -0.02,
+            "commodities": -0.03,
+            "cash":        +0.01,
+            "crypto":      -0.05,
+        },
+        "resilience_impact": -3,
+        "region_stress": {"us": 30, "europe": 35, "asia": 38, "emerging": 45, "gulf": 20},
+        "affected_sectors": {
+            "Consumer Discretionary": -6, "Industrials": -5, "Real Estate": -2,
+            "Fixed Income": +3, "Healthcare": +2, "Cash": +1,
+        },
+        "historical_analogue": (
+            "Mirrors the 2015–2016 global growth scare triggered by China devaluation fears: the S&P 500 "
+            "corrected 12% and credit spreads widened, yet no recession followed. GDP slowed to 1.6% in 2016 "
+            "before rebounding — a soft patch, not a hard landing."
+        ),
+    },
+    "dollar_strengthening": {
+        "id": "dollar_strengthening",
+        "name": "Dollar Strengthening Cycle",
+        "category": "monetary",
+        "severity": "low",
+        "headline": "USD Rises — Emerging Markets Face Mild Headwinds",
+        "description": (
+            "A strengthening US dollar creates modest headwinds for EM equities and commodity prices. "
+            "US assets hold relatively firm in dollar terms while international holdings lose ground on "
+            "currency translation. The pressure is gradual — no crisis, but a persistent drag."
+        ),
+        "effects": {
+            "equities":    -0.03,
+            "bonds":       +0.01,
+            "real_estate":  0.00,
+            "commodities": -0.04,
+            "cash":        +0.02,
+            "crypto":      -0.03,
+        },
+        "resilience_impact": -2,
+        "region_stress": {"emerging": 55, "asia": 40, "europe": 32, "gulf": 15, "us": 5},
+        "affected_sectors": {
+            "Emerging Markets": -8, "Commodities": -4, "Energy": -3,
+            "Financials": +2, "Cash": +2, "Fixed Income": +1,
+        },
+        "historical_analogue": (
+            "Mirrors the 2014–2015 USD bull run: the DXY index gained 25% in 12 months, MSCI EM fell 16%, "
+            "and commodity indices declined 30% as dollar-denominated prices became expensive abroad. "
+            "US equities were broadly resilient in dollar terms, gaining 1.4% even as EM fell sharply."
+        ),
+    },
+    "earnings_season_surprise": {
+        "id": "earnings_season_surprise",
+        "name": "Earnings Season Surprise",
+        "category": "market",
+        "severity": "low",
+        "headline": "Corporate Earnings Beat Broadly — Low Drama Rally",
+        "description": (
+            "Companies report results well ahead of analyst consensus across most sectors. Earnings beats "
+            "trigger modest but broad equity appreciation. Volatility remains low. No macro shock in sight — "
+            "just quiet, fundamental-driven market strength."
+        ),
+        "effects": {
+            "equities":    +0.04,
+            "bonds":       +0.00,
+            "real_estate": +0.01,
+            "commodities":  0.00,
+            "cash":         0.00,
+            "crypto":      +0.03,
+        },
+        "resilience_impact": +2,
+        "region_stress": {"us": 5, "europe": 12, "asia": 15, "emerging": 20, "gulf": 8},
+        "affected_sectors": {
+            "Technology": +6, "Consumer Discretionary": +4, "Financials": +4,
+            "Industrials": +3, "Fixed Income": 0, "Energy": +2,
+        },
+        "historical_analogue": (
+            "Echoes Q1 2023 earnings season: 79% of S&P 500 companies beat EPS consensus by an average of 7%, "
+            "the index gained 5%+ through the reporting period, and the VIX fell to its lowest level since "
+            "early 2020. A reminder that calm, fundamentals-driven quarters are part of every cycle."
+        ),
+    },
 }
 
 # ── Event → available decisions ───────────────────────────────────────────────
@@ -319,8 +691,20 @@ EVENT_DECISIONS = {
     "ai_boom":            ["stabilize", "increase_risk", "diversify_global", "hedge_inflation"],
     "recession":          ["stabilize", "raise_cash", "extend_duration", "rotate_defensive"],
     "currency_crisis":    ["stabilize", "buy_commodities", "diversify_global", "raise_cash"],
-    "supply_chain_shock": ["stabilize", "buy_commodities", "rotate_defensive", "raise_cash"],
-    "geopolitical_shock": ["stabilize", "buy_commodities", "raise_cash", "rotate_defensive"],
+    "supply_chain_shock":      ["stabilize", "buy_commodities", "rotate_defensive", "raise_cash"],
+    "geopolitical_shock":      ["stabilize", "buy_commodities", "raise_cash", "rotate_defensive"],
+    "broad_market_crash":      ["stabilize", "raise_cash", "extend_duration", "rotate_defensive"],
+    "china_property_crisis":   ["stabilize", "raise_cash", "diversify_global", "buy_commodities"],
+    "european_energy_crisis":  ["stabilize", "buy_commodities", "hedge_inflation", "rotate_defensive"],
+    "fed_rate_cut_cycle":      ["stabilize", "increase_risk", "extend_duration", "diversify_global"],
+    "real_estate_recovery":    ["stabilize", "increase_risk", "diversify_global", "hedge_inflation"],
+    "emerging_market_boom":    ["stabilize", "increase_risk", "diversify_global", "buy_commodities"],
+    "global_liquidity_surge":  ["stabilize", "increase_risk", "buy_commodities", "diversify_global"],
+    "energy_transition_boom":  ["stabilize", "increase_risk", "buy_commodities", "diversify_global"],
+    "post_crisis_recovery":    ["stabilize", "increase_risk", "extend_duration", "diversify_global"],
+    "mild_economic_slowdown":  ["stabilize", "rotate_defensive", "raise_cash", "extend_duration"],
+    "dollar_strengthening":    ["stabilize", "raise_cash", "buy_commodities", "rotate_defensive"],
+    "earnings_season_surprise":["stabilize", "increase_risk", "diversify_global", "hedge_inflation"],
 }
 
 # ── Decisions ─────────────────────────────────────────────────────────────────
@@ -425,7 +809,7 @@ SCENARIOS = [
         "starting_capital": 100_000,
         "portfolio": {"equities": 0.60, "bonds": 0.30, "real_estate": 0.00, "commodities": 0.00, "cash": 0.10, "crypto": 0.00},
         "starting_event": "inflation_shock",
-        "event_pool": ["inflation_shock", "rate_hike_cycle", "recession", "ai_boom", "supply_chain_shock", "geopolitical_shock"],
+        "event_pool": ["inflation_shock", "rate_hike_cycle", "recession", "ai_boom", "supply_chain_shock", "geopolitical_shock", "fed_rate_cut_cycle", "mild_economic_slowdown", "earnings_season_surprise", "post_crisis_recovery"],
         "description": "A classic balanced portfolio. Global inflation is rising and rates are about to move. Test your conviction.",
         "risk_level": "Medium",
         "risk_color": "#F59E0B",
@@ -437,7 +821,7 @@ SCENARIOS = [
         "starting_capital": 100_000,
         "portfolio": {"equities": 0.80, "bonds": 0.10, "real_estate": 0.00, "commodities": 0.00, "cash": 0.10, "crypto": 0.00},
         "starting_event": "tech_crash",
-        "event_pool": ["tech_crash", "ai_boom", "inflation_shock", "recession", "geopolitical_shock", "rate_hike_cycle"],
+        "event_pool": ["tech_crash", "ai_boom", "inflation_shock", "recession", "geopolitical_shock", "rate_hike_cycle", "broad_market_crash", "post_crisis_recovery", "earnings_season_surprise", "dollar_strengthening"],
         "description": "High conviction in equities. Markets are frothy. A severe correction is already underway in technology.",
         "risk_level": "High",
         "risk_color": "#dc2626",
@@ -449,7 +833,7 @@ SCENARIOS = [
         "starting_capital": 100_000,
         "portfolio": {"equities": 0.25, "bonds": 0.55, "real_estate": 0.10, "commodities": 0.00, "cash": 0.10, "crypto": 0.00},
         "starting_event": "rate_hike_cycle",
-        "event_pool": ["rate_hike_cycle", "inflation_shock", "banking_crisis", "recession", "ai_boom", "currency_crisis"],
+        "event_pool": ["rate_hike_cycle", "inflation_shock", "banking_crisis", "recession", "ai_boom", "currency_crisis", "fed_rate_cut_cycle", "mild_economic_slowdown", "real_estate_recovery", "earnings_season_surprise"],
         "description": "Safety-first allocation. But rates are rising fast and your bond-heavy portfolio faces severe pressure.",
         "risk_level": "Low–Medium",
         "risk_color": "#1D9E75",
@@ -461,7 +845,7 @@ SCENARIOS = [
         "starting_capital": 100_000,
         "portfolio": {"equities": 0.30, "bonds": 0.10, "real_estate": 0.25, "commodities": 0.25, "cash": 0.10, "crypto": 0.00},
         "starting_event": "commodity_boom",
-        "event_pool": ["commodity_boom", "geopolitical_shock", "supply_chain_shock", "inflation_shock", "recession", "rate_hike_cycle"],
+        "event_pool": ["commodity_boom", "geopolitical_shock", "supply_chain_shock", "inflation_shock", "recession", "rate_hike_cycle", "european_energy_crisis", "china_property_crisis", "energy_transition_boom", "emerging_market_boom"],
         "description": "Concentrated in real assets. A commodity supercycle is beginning. Can you ride the wave without getting crushed?",
         "risk_level": "Medium",
         "risk_color": "#F59E0B",
@@ -473,7 +857,7 @@ SCENARIOS = [
         "starting_capital": 100_000,
         "portfolio": {"equities": 0.50, "bonds": 0.30, "real_estate": 0.10, "commodities": 0.00, "cash": 0.10, "crypto": 0.00},
         "starting_event": "banking_crisis",
-        "event_pool": ["banking_crisis", "recession", "currency_crisis", "rate_hike_cycle", "geopolitical_shock", "supply_chain_shock"],
+        "event_pool": ["banking_crisis", "recession", "currency_crisis", "rate_hike_cycle", "geopolitical_shock", "supply_chain_shock", "broad_market_crash", "china_property_crisis", "post_crisis_recovery", "mild_economic_slowdown"],
         "description": "Systemic banking stress is unfolding. Credit is tightening. Fear is spreading. Can you preserve capital?",
         "risk_level": "Very High",
         "risk_color": "#dc2626",
